@@ -1,0 +1,66 @@
+{{- if .Values.verify.enabled }}
+{{- $fullname := include "counter.fullname" . }}
+{{- $host := include "counter.host" . }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $fullname }}-verify
+  labels:
+    {{- include "counter.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade,post-rollback
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 3600
+  activeDeadlineSeconds: 180
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: verify
+          image: {{ .Values.verify.image | quote }}
+          command:
+            - sh
+            - -ec
+            - |
+              echo "backend:  GET /api/counter"
+              curl -fsS --max-time 5 http://{{ $fullname }}-backend:{{ .Values.backend.service.port }}/api/counter
+              echo
+              echo "frontend: GET /"
+              curl -fsS --max-time 5 -o /dev/null -w '%{http_code}\n' http://{{ $fullname }}-frontend:{{ .Values.frontend.service.port }}/
+              {{- if and .Values.tls.enabled .Values.verify.ingressService }}
+              echo "ingress:  GET https://{{ $host }}/api/counter (сертификат проверяется CA релиза)"
+              curl -fsS --max-time 5 --cacert /ca/ca.crt \
+                --connect-to {{ $host }}:443:{{ .Values.verify.ingressService }}:443 \
+                https://{{ $host }}/api/counter
+              echo
+              {{- end }}
+              echo "OK: release {{ .Release.Name }} is healthy"
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 50m, memory: 32Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          {{- if and .Values.tls.enabled .Values.verify.ingressService }}
+          volumeMounts:
+            - name: ca
+              mountPath: /ca
+              readOnly: true
+      volumes:
+        - name: ca
+          secret:
+            secretName: {{ $fullname }}-tls
+            items:
+              - key: ca.crt
+                path: ca.crt
+          {{- end }}
+{{- end }}

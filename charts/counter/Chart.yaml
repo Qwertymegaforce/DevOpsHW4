@@ -1,0 +1,7 @@
+apiVersion: v2
+name: counter
+description: Счётчик (Next.js frontend + aiohttp backend) с HTTPS, необязательными PostgreSQL и масштабированием по расписанию
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+kubeVersion: ">=1.27.0-0"

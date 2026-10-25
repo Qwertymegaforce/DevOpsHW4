@@ -1,0 +1,60 @@
+{{- if .Values.tls.enabled }}
+{{- $fullname := include "counter.fullname" . }}
+{{- if not .Values.tls.issuerRef.name }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ $fullname }}-selfsigned
+  labels:
+    {{- include "counter.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $fullname }}-ca
+  labels:
+    {{- include "counter.labels" . | nindent 4 }}
+spec:
+  isCA: true
+  commonName: {{ $fullname }}-ca
+  secretName: {{ $fullname }}-ca
+  duration: 87600h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: {{ $fullname }}-selfsigned
+    kind: Issuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ $fullname }}-ca
+  labels:
+    {{- include "counter.labels" . | nindent 4 }}
+spec:
+  ca:
+    secretName: {{ $fullname }}-ca
+---
+{{- end }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $fullname }}-tls
+  labels:
+    {{- include "counter.labels" . | nindent 4 }}
+spec:
+  secretName: {{ $fullname }}-tls
+  dnsNames:
+    - {{ include "counter.host" . | quote }}
+  duration: 2160h
+  renewBefore: 360h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    {{- include "counter.issuerRef" . | nindent 4 }}
+{{- end }}

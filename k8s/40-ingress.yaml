@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: counter
+  namespace: counter
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - counter.localtest.me
+      secretName: counter-tls
+  rules:
+    - host: counter.localtest.me
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  name: http

@@ -1,0 +1,14 @@
+Релиз {{ .Release.Name }} установлен в namespace {{ .Release.Namespace }}.
+
+Адрес:  https://{{ include "counter.host" . }}
+{{- if .Values.tls.enabled }}
+Проверка сертификата без -k:
+  kubectl -n {{ .Release.Namespace }} get secret {{ include "counter.fullname" . }}-tls -o jsonpath='{.data.ca\.crt}' | base64 -d > /tmp/{{ .Release.Name }}-ca.crt
+  curl --cacert /tmp/{{ .Release.Name }}-ca.crt https://{{ include "counter.host" . }}/api/counter
+{{- end }}
+{{- if .Values.postgres.enabled }}
+
+PostgreSQL: {{ include "counter.fullname" . }}-postgres-0.{{ include "counter.fullname" . }}-postgres
+Пароль: kubectl -n {{ .Release.Namespace }} get secret {{ include "counter.fullname" . }}-postgres-auth -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d
+(Secret и PVC переживают helm uninstall.)
+{{- end }}

@@ -1,0 +1,7 @@
+ingress:
+  host: green.localtest.me
+backend:
+  replicas: 2
+  port: 9191
+frontend:
+  replicas: 2

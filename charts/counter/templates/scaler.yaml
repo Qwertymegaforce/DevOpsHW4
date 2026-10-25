@@ -1,0 +1,96 @@
+{{- if .Values.scaler.enabled }}
+{{- $fullname := include "counter.fullname" . }}
+{{- $target := printf "%s-frontend" $fullname }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $fullname }}-scaler
+  labels:
+    {{- include "counter.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $fullname }}-scaler
+  labels:
+    {{- include "counter.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: [{{ $target | quote }}]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    resourceNames: [{{ $target | quote }}]
+    verbs: ["get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $fullname }}-scaler
+  labels:
+    {{- include "counter.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $fullname }}-scaler
+subjects:
+  - kind: ServiceAccount
+    name: {{ $fullname }}-scaler
+    namespace: {{ .Release.Namespace }}
+{{- range $name, $cfg := dict "up" .Values.scaler.up "down" .Values.scaler.down }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullname }}-scale-{{ $name }}
+  labels:
+    {{- include "counter.labels" $ | nindent 4 }}
+spec:
+  schedule: {{ $cfg.schedule | quote }}
+  timeZone: {{ $.Values.scaler.timeZone | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 120
+      template:
+        spec:
+          serviceAccountName: {{ $fullname }}-scaler
+          automountServiceAccountToken: true
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: kubectl
+              image: {{ $.Values.scaler.image | quote }}
+              args:
+                - scale
+                - deployment/{{ $target }}
+                - --replicas={{ $cfg.replicas }}
+                - --namespace={{ $.Release.Namespace }}
+              env:
+                - name: HOME
+                  value: /tmp
+              resources:
+                requests: { cpu: 10m, memory: 32Mi }
+                limits: { cpu: 100m, memory: 64Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}
+{{- end }}
+{{- end }}

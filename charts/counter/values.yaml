@@ -1,0 +1,73 @@
+
+nameOverride: ""
+fullnameOverride: ""
+revisionHistoryLimit: 10
+
+backend:
+  image:
+    repository: counter-backend
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 9090
+  host: "0.0.0.0"
+  extraConfig: {}
+  service:
+    port: 80
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 50m, memory: 64Mi }
+  podAnnotations: {}
+
+frontend:
+  image:
+    repository: counter-frontend
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 8080
+  service:
+    port: 80
+  resources:
+    requests: { cpu: 100m, memory: 192Mi }
+    limits: { cpu: 100m, memory: 192Mi }
+  podAnnotations: {}
+
+ingress:
+  className: nginx
+  host: ""
+  annotations: {}
+
+tls:
+  enabled: true
+  issuerRef:
+    name: ""
+    kind: Issuer
+
+postgres:
+  enabled: false
+  image: postgres:16-alpine
+  user: counter
+  database: counter
+  persistence:
+    size: 1Gi
+    storageClass: ""
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 100m, memory: 256Mi }
+
+scaler:
+  enabled: false
+  timeZone: Europe/Moscow
+  image: registry.k8s.io/kubectl:v1.37.0
+  up:
+    schedule: "0 9 * * *"
+    replicas: 3
+  down:
+    schedule: "0 18 * * *"
+    replicas: 1
+
+verify:
+  enabled: true
+  image: curlimages/curl:8.10.1
+  ingressService: ingress-nginx-controller.ingress-nginx.svc.cluster.local

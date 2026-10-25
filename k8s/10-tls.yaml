@@ -1,0 +1,53 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned
+  namespace: counter
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: counter-ca
+  namespace: counter
+spec:
+  isCA: true
+  commonName: counter-ca
+  secretName: counter-ca
+  duration: 87600h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned
+    kind: Issuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: counter-ca
+  namespace: counter
+spec:
+  ca:
+    secretName: counter-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: counter-tls
+  namespace: counter
+spec:
+  secretName: counter-tls
+  dnsNames:
+    - counter.localtest.me
+  duration: 2160h
+  renewBefore: 360h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: counter-ca
+    kind: Issuer
+    group: cert-manager.io

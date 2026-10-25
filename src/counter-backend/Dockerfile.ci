@@ -1,0 +1,11 @@
+FROM python:3.11-slim-bookworm
+
+COPY dist/ /tmp/dist/
+RUN pip install --no-cache-dir --no-index --find-links /tmp/dist/vendor /tmp/dist/*.whl \
+ && rm -rf /tmp/dist
+
+ENV HOST="0.0.0.0"
+ENV PORT="8080"
+USER nobody
+EXPOSE ${PORT}/tcp
+ENTRYPOINT [ "server" ]

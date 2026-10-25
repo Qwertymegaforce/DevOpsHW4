@@ -1,0 +1,12 @@
+{{- $cfg := merge (dict "HOST" .Values.backend.host "PORT" (toString .Values.backend.port) "PYTHONUNBUFFERED" "1") .Values.backend.extraConfig }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "counter.fullname" . }}-backend
+  labels:
+    {{- include "counter.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+data:
+  {{- range $key, $value := $cfg }}
+  {{ $key }}: {{ $value | toString | quote }}
+  {{- end }}
